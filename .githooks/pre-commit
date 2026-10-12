@@ -1,0 +1,3 @@
+#!/bin/sh
+# dist/ is committed (plugins install straight from git), so never let it go stale.
+npm run build --silent && git add dist

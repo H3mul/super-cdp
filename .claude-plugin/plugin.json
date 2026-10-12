@@ -1,0 +1,8 @@
+{
+  "name": "super-cdp",
+  "version": "0.1.0",
+  "description": "Analytical, token-cheap web UI inspection over Chrome DevTools Protocol. Replaces screenshot analysis with structured queries.",
+  "author": {
+    "name": "H3mul"
+  }
+}

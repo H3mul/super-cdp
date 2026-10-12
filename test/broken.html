@@ -1,0 +1,22 @@
+<!doctype html>
+<html><head><title>Broken</title>
+<style>
+  body { margin: 0; font-family: sans-serif; }
+  #wide { width: 2000px; height: 20px; background: #eee; }
+  #buy { position: absolute; top: 50px; left: 20px; width: 100px; height: 40px; }
+  #overlay { position: fixed; top: 40px; left: 0; width: 300px; height: 60px; z-index: 10; }
+  #tiny { display: inline-block; width: 10px; height: 10px; background: red; }
+  #faint { color: #ccc; background: #fff; }
+</style></head>
+<body>
+  <h1 id="title">Hello</h1>
+  <div id="wide"></div>
+  <button id="buy">Buy</button>
+  <div id="overlay"></div>
+  <input id="email" type="text">
+  <img id="noalt" src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7">
+  <img id="gone" alt="x" src="/missing.png">
+  <a id="tiny" href="#"></a>
+  <p id="faint">faint text</p>
+  <script>console.error('boom-fixture');</script>
+</body></html>

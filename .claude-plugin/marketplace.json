@@ -1,0 +1,14 @@
+{
+  "name": "super-cdp",
+  "owner": {
+    "name": "H3mul"
+  },
+  "plugins": [
+    {
+      "name": "super-cdp",
+      "source": "./",
+      "description": "Analytical, token-cheap web UI inspection over CDP"
+    }
+  ],
+  "description": "Analytical, token-cheap web UI inspection over CDP"
+}

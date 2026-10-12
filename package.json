@@ -1,0 +1,21 @@
+{
+  "name": "super-cdp",
+  "version": "0.1.0",
+  "description": "Token-cheap, analytical CDP toolkit for web UI debugging (Claude Code plugin)",
+  "type": "module",
+  "main": "dist/core.js",
+  "bin": { "super-cdp": "dist/entry/cli.js" },
+  "files": ["dist", "skills", "hooks", "scripts", ".claude-plugin"],
+  "scripts": {
+    "build": "tsc",
+    "prepare": "git config core.hooksPath .githooks || true",
+    "test": "npm run build && node --test test/core.test.mjs"
+  },
+  "dependencies": {
+    "playwright-core": "^1.49.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "typescript": "^5.5.0"
+  }
+}
