@@ -4,7 +4,7 @@ Claude Code plugin for analytical web UI debugging over Chrome DevTools Protocol
 
 ## Install
 ```
-/plugin marketplace add <path-or-git-url-of-this-repo>
+/plugin marketplace add h3mul/super-cdp
 /plugin install super-cdp@super-cdp
 ```
 First session start runs `npm install --omit=dev` inside the plugin dir (only `playwright-core`; no browser download).
