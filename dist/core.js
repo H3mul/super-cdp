@@ -182,6 +182,18 @@ function api(page, key) {
         },
     };
 }
+/** Compact a script error: message + the user's failing line + a hint. Stack frames are noise. */
+function explain(e, code) {
+    const msg = String(e?.message ?? e).split('\n')[0];
+    // AsyncFunction prepends 2 header lines; the user-script frame is the last "<anonymous>:L:C" not inside evaluate.
+    const frame = String(e?.stack ?? '').split('\n').filter((l) => /<anonymous>:\d+:\d+/.test(l) && !/evaluate/.test(l)).pop();
+    const n = frame ? Number(/<anonymous>:(\d+):/.exec(frame)[1]) - 2 : 0;
+    const src = n > 0 ? `\n  line ${n}: ${code.split('\n')[n - 1]?.trim().slice(0, 120)}` : '';
+    const hint = /Cannot read properties of (null|undefined)/.test(msg)
+        ? `\n  hint: a lookup returned null (selector matched nothing, or element gone after a re-render). Probe first: await page.waitForSelector(sel, {timeout: 2000}) or return document.querySelector(sel) !== null.`
+        : '';
+    return Object.assign(new Error(msg + src + hint), { scripted: true });
+}
 /** Attach to the user's Chrome, pick a localhost page, run `code` with `page` and `$` in scope. */
 export async function run(code, { host, port, max = 4000, url, timeoutMs = 15000 } = {}) {
     const ep = endpoint({ host, port });
@@ -196,7 +208,10 @@ export async function run(code, { host, port, max = 4000, url, timeoutMs = 15000
         await page.evaluate(install);
         const fn = new AsyncFunction('page', '$', code);
         const timeout = new Promise((_, rej) => (timer = setTimeout(() => rej(new Error(`timeout ${timeoutMs}ms`)), timeoutMs)));
-        return budget(await Promise.race([fn(page, api(page, ep.label)), timeout]), max);
+        const result = await Promise.race([fn(page, api(page, ep.label)), timeout]).catch((e) => {
+            throw explain(e, code);
+        });
+        return budget(result, max);
     }
     finally {
         clearTimeout(timer);

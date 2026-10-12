@@ -89,6 +89,11 @@ test('snap is small; trim and ax work', async () => {
   assert.ok((await r(`return await $.ax('body')`)).includes('heading'));
 });
 
+test('script errors name the failing line and hint on null', async () => {
+  await assert.rejects(r(`const a = 1\nreturn await page.evaluate(() => document.querySelector('#nope').id)`), (e) =>
+    /line 2: return await page\.evaluate/.test(e.message) && /hint:/.test(e.message) && !/\n\s+at /.test(e.message));
+});
+
 test('budget truncates', async () => {
   const out = await r(`return 'x'.repeat(100000)`, { max: 100 });
   assert.ok(out.length < 300 && out.includes('truncated'));

@@ -33,7 +33,7 @@ try {
     process.exit(2);
   }
 } catch (e: any) {
-  console.error(String(e?.stack ?? e).split('\n').slice(0, 5).join('\n'));
+  console.error(e?.scripted ? e.message : String(e?.stack ?? e).split('\n').slice(0, 5).join('\n'));
   process.exit(1);
 }
 process.exit(0);
