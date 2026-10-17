@@ -3,6 +3,7 @@ import { chromium, type Page } from 'playwright-core';
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { createServer, connect } from 'node:net';
 import { install } from './browser.js';
 
 export const DEFAULT_PORT = 9222;
@@ -17,6 +18,47 @@ const isLocal = (u: string) => {
     return false;
   }
 };
+
+// Sandbox/corporate proxy: Node fetch ignores it and Playwright's own proxying drops credentials (407),
+// so read it once, strip it from the env, and tunnel via a local CONNECT forwarder instead.
+const envp = (k: string) => process.env[k] ?? process.env[k.toLowerCase()];
+const PROXY = envp('HTTPS_PROXY') || envp('HTTP_PROXY');
+const NO_PROXY = (envp('NO_PROXY') ?? '').split(',').map((x) => x.trim().replace(/^\*?\./, '')).filter(Boolean);
+for (const k of ['HTTP_PROXY', 'HTTPS_PROXY', 'ALL_PROXY', 'NO_PROXY']) {
+  delete process.env[k];
+  delete process.env[k.toLowerCase()];
+}
+
+/** Local plain-TCP port that CONNECTs to `base`'s host through the proxy. No-op without a proxy, for https, or when NO_PROXY matches. */
+async function viaProxy(base: string) {
+  const u = new URL(base);
+  const skip = !PROXY || u.protocol !== 'http:' || NO_PROXY.some((n) => n === '*' || u.hostname === n || u.hostname.endsWith('.' + n));
+  if (skip) return { base, close: () => {} };
+  const p = new URL(PROXY!);
+  const auth = p.username ? `Proxy-Authorization: Basic ${Buffer.from(`${decodeURIComponent(p.username)}:${decodeURIComponent(p.password)}`).toString('base64')}\r\n` : '';
+  const target = `${u.hostname}:${u.port || 80}`;
+  const server = createServer((c) => {
+    const up = connect(Number(p.port) || 80, p.hostname);
+    let head = Buffer.alloc(0);
+    const onData = (d: Buffer) => {
+      head = Buffer.concat([head, d]);
+      const i = head.indexOf('\r\n\r\n');
+      if (i < 0) return;
+      up.off('data', onData);
+      if (!/^HTTP\/1\.[01] 200/.test(head.toString('latin1', 0, 16))) return void (c.destroy(), up.destroy());
+      c.write(head.subarray(i + 4));
+      c.pipe(up);
+      up.pipe(c);
+    };
+    up.on('data', onData).on('connect', () => up.write(`CONNECT ${target} HTTP/1.1\r\nHost: ${target}\r\n${auth}\r\n`));
+    up.on('error', () => c.destroy());
+    c.on('error', () => up.destroy());
+    c.on('close', () => up.destroy());
+  });
+  await new Promise<void>((r) => server.listen(0, '127.0.0.1', r));
+  const { port } = server.address() as { port: number };
+  return { base: `http://127.0.0.1:${port}`, close: () => server.close() };
+}
 
 export type Conn = { host?: string; port?: number };
 
@@ -42,10 +84,11 @@ const clip = (s: string, n: number) => (s.length > n ? s.slice(0, n) + '…' : s
 export async function probe(conn: Conn = {}) {
   const { base, label, local } = endpoint(conn);
   const timeout = () => AbortSignal.timeout(local ? 1000 : 4000);
+  const t = await viaProxy(base);
   try {
-    const v = await fetch(`${base}/json/version`, { signal: timeout() });
+    const v = await fetch(`${t.base}/json/version`, { signal: timeout() });
     if (!v.ok) throw new Error(String(v.status));
-    const list = (await (await fetch(`${base}/json/list`, { signal: timeout() })).json()) as any[];
+    const list = (await (await fetch(`${t.base}/json/list`, { signal: timeout() })).json()) as any[];
     const pages = list.filter((t) => t.type === 'page');
     // Local browser: only localhost tabs are attachable (your other tabs stay untouched).
     // Remote host: choosing the host is the opt-in, so every tab is listed; narrow with --url.
@@ -59,6 +102,8 @@ export async function probe(conn: Conn = {}) {
     };
   } catch {
     return { open: false, host: label };
+  } finally {
+    t.close();
   }
 }
 
@@ -195,7 +240,8 @@ export type RunOpts = Conn & { max?: number; url?: string; timeoutMs?: number };
 /** Attach to the user's Chrome, pick a localhost page, run `code` with `page` and `$` in scope. */
 export async function run(code: string, { host, port, max = 4000, url, timeoutMs = 15000 }: RunOpts = {}) {
   const ep = endpoint({ host, port });
-  const browser = await chromium.connectOverCDP(ep.base);
+  const t = await viaProxy(ep.base);
+  const browser = await chromium.connectOverCDP(t.base).catch((e) => (t.close(), Promise.reject(e)));
   let timer: NodeJS.Timeout | undefined;
   try {
     const pages = browser.contexts().flatMap((c) => c.pages());
@@ -215,5 +261,6 @@ export async function run(code: string, { host, port, max = 4000, url, timeoutMs
   } finally {
     clearTimeout(timer);
     await browser.close(); // for connectOverCDP this only disconnects
+    t.close();
   }
 }

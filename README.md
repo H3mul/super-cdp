@@ -44,3 +44,5 @@ Flags: `--host`, `--port`, `--max` (output char cap, default 4000), `--url` (pic
 `npm test` builds and runs the suite against a real Chromium (`CHROME=/path/to/chrome`, default `/usr/sbin/chromium`; the test spawns its own on :9333). `dist/` is committed because plugins install straight from git.
 
 Core lives in `src/core.ts` + `src/browser.ts` (injected page code, must stay self-contained); `src/entry/` holds per-platform entrypoints (Claude CLI today).
+
+**Proxies (e.g. Claude Code's sandbox):** if `HTTPS_PROXY`/`HTTP_PROXY` is set (and the host isn't in `NO_PROXY`), super-cdp tunnels to the CDP port with `CONNECT`, using the proxy URL's credentials. In the sandbox, allow `127.0.0.1:9222` in `sandbox.network.allowedDomains` and run with `NO_PROXY= no_proxy=` so loopback goes through the proxy. Only `http:` endpoints are tunnelled.
