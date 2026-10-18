@@ -1,6 +1,6 @@
 {
   "name": "super-cdp",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Token-cheap, analytical CDP toolkit for web UI debugging (Claude Code plugin)",
   "type": "module",
   "main": "dist/core.js",

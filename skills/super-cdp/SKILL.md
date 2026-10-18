@@ -12,6 +12,8 @@ Ask the page a specific question, get a small answer. **Never start with a scree
 ## Step 1: probe (once per session; remember the answer)
 Only when runtime inspection would beat reading the source. Skip for pure logic/backend work.
 
+**Sandbox (`HTTPS_PROXY`/`HTTP_PROXY` set in the Bash env):** run every `$CDP` command, starting with the first probe, as `NO_PROXY= no_proxy= $CDP ...` so loopback goes through the proxy. Never probe without it first, and never read a closed result from a bare probe as "no port". If that probe still fails with a proxy/connection denial (not a clean `open:false`), the port isn't allowlisted: give the user the allowlist command from their global CLAUDE.md (port filled in, `!` prefix), then re-probe the same way. Only a clean `open:false` through the proxy means the port is really closed.
+
 `$CDP probe` prints `{"open":true,"host":...,"targets":[...]}` (exit 0) or `{"open":false}` (exit 3). It is read-only and never starts a browser.
 
 - **open** → AskUserQuestion: "A Chrome DevTools port is open on :9222. May I attach to inspect your page?" (Yes / Not this session). Note CDP exposes the whole browser (tabs, cookies); a dedicated debug profile is safer. Do not attach without a yes.
